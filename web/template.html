@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TRIVENI: live entity resolution demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Sans+3:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Kannada:wght@400;600&family=Noto+Sans+Tamil:wght@400;600&family=Noto+Sans+Malayalam:wght@400;600&family=Noto+Sans+Bengali:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #FAFBFC; --surface: #FFFFFF; --mist: #E3EAF0; --line: #CBD5DE;
+  --ink: #1B2A4A; --muted: #55657A; --teal: #127C8A; --teal-soft: #DDF0F2;
+  --saffron: #D98A1C; --saffron-text: #9A5A06; --good: #1E7A4E; --good-soft: #DDF2E6;
+  --bad: #B3322B; --bad-soft: #F8E1DF;
+  --sans: 'Source Sans 3', 'Noto Sans Devanagari', 'Noto Sans Kannada', 'Noto Sans Tamil', 'Noto Sans Malayalam', 'Noto Sans Bengali', system-ui, sans-serif;
+  --display: 'Bricolage Grotesque', 'Source Sans 3', system-ui, sans-serif;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0F1724; --surface: #172236; --mist: #22314A; --line: #34476A;
+    --ink: #E8EEF5; --muted: #A3B2C5; --teal: #4FBFCD; --teal-soft: #173A44;
+    --saffron: #F0A43A; --saffron-text: #F3B562; --good: #5CC98E; --good-soft: #17382A;
+    --bad: #F08079; --bad-soft: #3D1F22; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0F1724; --surface: #172236; --mist: #22314A; --line: #34476A;
+  --ink: #E8EEF5; --muted: #A3B2C5; --teal: #4FBFCD; --teal-soft: #173A44;
+  --saffron: #F0A43A; --saffron-text: #F3B562; --good: #5CC98E; --good-soft: #17382A;
+  --bad: #F08079; --bad-soft: #3D1F22; color-scheme: dark;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+*, *::before, *::after { box-sizing: inherit; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 18px/1.55 var(--sans); }
+h1, h2, h3 { font-family: var(--display); line-height: 1.1; margin: 0; letter-spacing: -0.01em; }
+p { margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--saffron); outline-offset: 2px; border-radius: 6px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 28px; }
+
+/* header */
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--paper); border-bottom: 1px solid var(--line); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
+.bar { display: flex; align-items: center; gap: 24px; padding-top: 14px; padding-bottom: 14px; flex-wrap: wrap; }
+.mark { display: flex; align-items: baseline; gap: 12px; margin-right: auto; }
+.mark h1 { font-size: 30px; font-weight: 800; letter-spacing: 0.02em; }
+.mark span { color: var(--muted); font-size: 16px; }
+.tabs { display: flex; gap: 4px; background: var(--mist); padding: 4px; border-radius: 12px; flex-wrap: wrap; }
+.tabs button { border: 0; background: transparent; padding: 8px 16px; border-radius: 9px; cursor: pointer; font-weight: 600; font-size: 16px; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(27,42,74,.15); }
+.theme { border: 1px solid var(--line); background: var(--surface); border-radius: 9px; padding: 7px 12px; cursor: pointer; font-size: 15px; }
+
+main { padding: 36px 0 72px; }
+section[role="tabpanel"][hidden] { display: none; }
+.lede { font-size: 20px; color: var(--muted); max-width: 70ch; margin-top: 10px; }
+.h2 { font-size: 40px; font-weight: 800; }
+.h3 { font-size: 22px; font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 8px; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-size: 16px; }
+.chip[aria-pressed="true"] { border-color: var(--teal); background: var(--teal-soft); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.muted { color: var(--muted); }
+.small { font-size: 15px; }
+.btn { border: 0; background: var(--ink); color: var(--paper); padding: 12px 22px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 18px; }
+.btn:disabled { opacity: .6; cursor: progress; }
+
+/* normalizer confluence */
+.confluence { display: grid; grid-template-columns: minmax(0, 1.25fr) 120px minmax(0, 0.75fr); align-items: stretch; margin-top: 18px; }
+.streams { display: flex; flex-direction: column; gap: 14px; }
+.stream { padding: 16px 18px; }
+.stream input { width: 100%; border: 0; border-bottom: 2px solid var(--line); background: transparent; font-size: 24px; padding: 4px 0 6px; }
+.stream input:focus { outline: none; border-bottom-color: var(--teal); }
+.script { font-size: 14px; color: var(--muted); font-weight: 600; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.steps div { min-width: 0; }
+.steps dt { font-size: 13px; color: var(--muted); }
+.steps dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.flow { width: 100%; height: 100%; }
+.outcome { display: flex; flex-direction: column; justify-content: center; padding: 26px; border-radius: 16px; background: var(--mist); }
+.outcome .key { font-family: var(--display); font-size: 46px; font-weight: 800; line-height: 1; overflow-wrap: anywhere; margin: 8px 0 14px; }
+.outcome.agree { background: var(--teal-soft); }
+.outcome.agree .key { color: var(--teal); }
+.keylist { list-style: none; padding: 0; margin: 0; font-size: 17px; }
+.keylist li { display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding: 6px 0; }
+.keylist b { font-family: var(--display); }
+
+/* compare */
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+.rec { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.rec label { font-size: 14px; color: var(--muted); font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
+.rec input, .rec select { border: 1px solid var(--line); background: var(--paper); border-radius: 9px; padding: 9px 12px; font-size: 18px; }
+.verdict { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: center; padding: 24px; margin-top: 18px; }
+.prob { font-family: var(--display); font-size: 72px; font-weight: 800; line-height: 1; }
+.verdict.match .prob { color: var(--good); }
+.verdict.nomatch .prob { color: var(--bad); }
+.verdict .says { font-size: 24px; font-weight: 700; }
+.fgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.fgroup { padding: 18px; }
+.frow { display: grid; grid-template-columns: 1fr 64px; gap: 4px 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--mist); font-size: 16px; }
+.frow:first-of-type { border-top: 0; }
+.frow .v { text-align: right; font-weight: 700; }
+.meter { grid-column: 1 / -1; height: 6px; background: var(--mist); border-radius: 3px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--teal); }
+.flag { font-weight: 700; }
+.flag.yes { color: var(--good); } .flag.no { color: var(--bad); } .flag.na { color: var(--muted); }
+.keysbox { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.k { font-size: 14px; border-radius: 6px; padding: 2px 8px; background: var(--mist); }
+.k.shared { background: var(--teal-soft); color: var(--teal); font-weight: 700; }
+
+/* pipeline */
+.runrow { display: flex; align-items: center; gap: 20px; margin-top: 22px; flex-wrap: wrap; }
+.stages { list-style: none; padding: 0; margin: 22px 0 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.stages li { padding: 14px; border-radius: 12px; background: var(--mist); min-height: 110px; }
+.stages li.done { background: var(--teal-soft); }
+.stages b { display: block; font-family: var(--display); font-size: 18px; }
+.stages span { font-size: 15px; color: var(--muted); }
+.stages li.done span { color: var(--ink); }
+.metrics { display: grid; grid-template-columns: 1.3fr repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
+.metric { padding: 18px; }
+.metric .n { font-family: var(--display); font-size: 40px; font-weight: 800; line-height: 1.05; }
+.metric.big { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.metric.big .n { font-size: 60px; color: var(--saffron); }
+.metric.big .muted { color: var(--mist); }
+.country { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.country div { padding: 12px 16px; }
+.country b { font-family: var(--display); font-size: 24px; }
+.explore { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 18px; margin-top: 28px; align-items: start; }
+.listbox { max-height: 640px; overflow-y: auto; padding: 6px; }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.search { width: 100%; border: 1px solid var(--line); background: var(--paper); border-radius: 9px; padding: 8px 12px; margin-bottom: 8px; }
+.item { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; width: 100%; text-align: left; border: 0; background: transparent; padding: 9px 10px; border-radius: 9px; cursor: pointer; }
+.item:hover { background: var(--mist); }
+.item[aria-current="true"] { background: var(--teal-soft); }
+.item .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .meta { font-size: 14px; color: var(--muted); }
+.st { font-size: 14px; font-weight: 700; align-self: center; }
+.st.ok { color: var(--good); } .st.err { color: var(--bad); }
+.detail { padding: 22px; }
+.table-wrap { overflow-x: auto; margin-top: 14px; }
+table { border-collapse: collapse; width: 100%; font-size: 16px; }
+th { text-align: left; font-size: 14px; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+td { padding: 9px 8px; border-bottom: 1px solid var(--mist); vertical-align: top; }
+td.num { text-align: right; font-weight: 700; white-space: nowrap; }
+tr.chosen td { background: var(--good-soft); }
+.tag { font-size: 13px; font-weight: 700; padding: 1px 7px; border-radius: 5px; background: var(--mist); }
+.bars { display: flex; align-items: flex-end; gap: 10px; height: 160px; margin-top: 12px; padding-top: 22px; }
+.bars div { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; min-width: 0; }
+.bars i { display: block; width: 100%; background: var(--line); border-radius: 6px 6px 0 0; position: relative; }
+.bars .best i { background: var(--saffron); }
+.bars em { font-style: normal; font-size: 14px; color: var(--muted); margin-top: 6px; white-space: nowrap; }
+.bars i::after { content: attr(data-v); position: absolute; top: -22px; left: 0; right: 0; text-align: center; font-size: 14px; font-weight: 700; color: var(--ink); }
+
+/* how */
+.how { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 28px; margin-top: 22px; }
+ol.pipe { margin: 0; padding: 0; list-style: none; counter-reset: s; }
+ol.pipe li { counter-increment: s; display: grid; grid-template-columns: 44px 1fr; gap: 0 14px; padding: 12px 0; border-top: 1px solid var(--line); }
+ol.pipe li::before { content: counter(s); grid-row: span 2; width: 36px; height: 36px; border-radius: 50%; background: var(--ink); color: var(--paper); display: grid; place-items: center; font-family: var(--display); font-weight: 700; }
+ol.pipe b { font-family: var(--display); font-size: 20px; }
+.imp { padding: 20px; }
+.imp .frow { grid-template-columns: 190px 1fr; }
+.imp .frow.kv { grid-template-columns: 1fr auto; }
+.addr { display: block; }
+.readas { display: block; font-size: 14px; color: var(--teal); }
+.imp .meter { grid-column: auto; }
+.note { margin-top: 28px; padding: 16px 20px; border-left: 4px solid var(--saffron); background: var(--surface); border-radius: 0 10px 10px 0; color: var(--muted); }
+
+@media (max-width: 900px) {
+  header.top { position: static; }
+  body::before { display: none; }
+  .bar { gap: 12px; }
+  .tabs button { padding: 7px 10px; font-size: 15px; }
+  .confluence { grid-template-columns: 1fr; }
+  .flow { display: none; }
+  .outcome { margin-top: 14px; }
+  .pair, .fgrid, .explore, .how { grid-template-columns: 1fr; }
+  .stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric.big { grid-column: 1 / -1; }
+  .steps { grid-template-columns: 1fr 1fr; }
+  .h2 { font-size: 30px; }
+  .verdict { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .flow path { transition: stroke .4s ease; }
+  .stages li { transition: background .3s ease; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap bar">
+    <div class="mark"><h1>TRIVENI</h1><span>Three sources, one business</span></div>
+    <nav class="tabs" role="tablist" aria-label="Demo sections">
+      <button role="tab" id="tab-normalize" aria-controls="normalize" aria-selected="true">Normalize a name</button>
+      <button role="tab" id="tab-compare" aria-controls="compare" aria-selected="false" tabindex="-1">Compare two records</button>
+      <button role="tab" id="tab-pipeline" aria-controls="pipeline" aria-selected="false" tabindex="-1">Run the pipeline</button>
+      <button role="tab" id="tab-how" aria-controls="how" aria-selected="false" tabindex="-1">How it works</button>
+    </nav>
+    <button class="theme" id="themeBtn" type="button">Dark mode</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- 1. normalizer -->
+  <section role="tabpanel" id="normalize" aria-labelledby="tab-normalize">
+    <h2 class="h2">The same shop, written three ways</h2>
+    <p class="lede">Type a business name in English, Hindi, Kannada, Tamil, Malayalam or Bengali. Each one is transliterated, cleaned and reduced to a phonetic key. When the keys agree, the records can be matched.</p>
+    <div class="chips" id="normSets" role="group" aria-label="Examples"></div>
+    <div class="confluence">
+      <div class="streams" id="streams"></div>
+      <svg class="flow" id="flow" viewBox="0 0 120 300" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 50 C 60 50, 60 150, 120 150" fill="none" stroke-width="5"/>
+        <path d="M0 150 L 120 150" fill="none" stroke-width="5"/>
+        <path d="M0 250 C 60 250, 60 150, 120 150" fill="none" stroke-width="5"/>
+      </svg>
+      <div class="outcome" id="outcome" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- 2. compare -->
+  <section role="tabpanel" id="compare" aria-labelledby="tab-compare" hidden>
+    <h2 class="h2">Are these the same business?</h2>
+    <p class="lede">The stage-1 LightGBM model compares two records using 27 similarity features and returns a match probability. Edit any field and the answer updates.</p>
+    <div class="chips" id="pairSets" role="group" aria-label="Examples"></div>
+    <div class="pair">
+      <div class="card rec" id="recA"></div>
+      <div class="card rec" id="recB"></div>
+    </div>
+    <div class="card verdict" id="verdict" aria-live="polite"></div>
+    <div class="fgrid" id="fgrid"></div>
+  </section>
+
+  <!-- 3. pipeline -->
+  <section role="tabpanel" id="pipeline" aria-labelledby="tab-pipeline" hidden>
+    <h2 class="h2">Match 360 businesses end to end</h2>
+    <p class="lede" id="pipeLede"></p>
+    <div class="runrow">
+      <button class="btn" id="runBtn" type="button">Run the pipeline</button>
+      <p class="muted small" id="runNote">Runs in your browser with the trained models. No server.</p>
+    </div>
+    <ol class="stages" id="stages"></ol>
+    <div id="results" hidden>
+      <div class="metrics" id="metrics"></div>
+      <div class="country" id="country"></div>
+      <div class="explore">
+        <div class="card listbox">
+          <div class="filters" id="filters" role="group" aria-label="Filter businesses"></div>
+          <input class="search" id="search" type="search" placeholder="Search a business" aria-label="Search a business">
+          <div id="list"></div>
+        </div>
+        <div class="card detail" id="detail"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. how -->
+  <section role="tabpanel" id="how" aria-labelledby="tab-how" hidden>
+    <h2 class="h2">How TRIVENI decides</h2>
+    <p class="lede">Eight stages turn three noisy sources into one list of matches for every Source 1 business. Stages 1 to 4 shrink the search; stages 5 to 7 are the machine learning.</p>
+    <div class="how">
+      <ol class="pipe">
+        <li><b>Read the sources</b><span class="muted">Source 1 is the reference list; Sources 2 and 3 are searched for matches.</span></li>
+        <li><b>Normalize</b><span class="muted">Map Indic scripts to Latin, fold accents, merge dotted letters, expand abbreviations, extract postcodes, house numbers and landmarks with regular expressions, and build a phonetic key.</span></li>
+        <li><b>Block with weighted keys</b><span class="muted">Records sharing a rare key (name sound, prefix, postcode, house number) become candidates, weighted by ln(1 + N / df).</span></li>
+        <li><b>Re-rank</b><span class="muted">Character-trigram cosine similarity keeps the 8 best candidates for each business.</span></li>
+        <li><b>Stage-1 LightGBM</b><span class="muted">Gradient-boosted trees score each pair from Jaro-Winkler, Levenshtein, IDF overlap, postcode and house-number features.</span></li>
+        <li><b>Stage-2 LightGBM</b><span class="muted">A second model sees the neighbourhood: rank among candidates, competing claims on the same record, and triangle support across sources.</span></li>
+        <li><b>Calibrate and decide</b><span class="muted">Isotonic regression gives true probabilities; each business gets the match set with the highest expected F0.5.</span></li>
+        <li><b>Output</b><span class="muted">One row per Source 1 business with its matched records.</span></li>
+      </ol>
+      <div>
+        <div class="card imp" id="training"></div>
+        <div class="card imp" id="imp1" style="margin-top:18px"></div>
+      </div>
+    </div>
+    <p class="note">The demo data is synthetic. It copies the format and noise of the Amazon ML Challenge data, including names written in Hindi, Kannada and Tamil script, so the full pipeline can run live in a browser.</p>
+  </section>
+</main>
+
+<script id="bundle" type="application/json">/*BUNDLE*/</script>
+<script>/*ENGINE*/</script>
+<script>
+(function () {
+  'use strict';
+  const B = JSON.parse(document.getElementById('bundle').textContent);
+  Triveni.init(B);
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const pct = x => (x * 100).toFixed(1) + '%';
+  const f2 = x => x.toFixed(2);
+
+  // ---------------------------------------------------------------- theme
+  const themeBtn = $('#themeBtn');
+  const sysDark = () => matchMedia('(prefers-color-scheme: dark)').matches;
+  function setTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    themeBtn.textContent = t === 'dark' ? 'Light mode' : 'Dark mode';
+    try { localStorage.setItem('triveni-theme', t); } catch (e) { /* storage unavailable */ }
+  }
+  let saved = null; try { saved = localStorage.getItem('triveni-theme'); } catch (e) { saved = null; }
+  setTheme(saved || (sysDark() ? 'dark' : 'light'));
+  themeBtn.addEventListener('click', () => setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+
+  // ---------------------------------------------------------------- tabs
+  const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+  const VIEWS = ['normalize', 'compare', 'pipeline', 'how'];
+  function show(id, focus) {
+    if (!VIEWS.includes(id)) id = 'normalize';
+    tabs.forEach(t => {
+      const on = t.getAttribute('aria-controls') === id;
+      t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      if (on && focus) t.focus();
+    });
+    if (location.hash.slice(1) !== id) history.replaceState(null, '', '#' + id);
+    if (id === 'normalize') drawFlow();
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => show(t.getAttribute('aria-controls')));
+    t.addEventListener('keydown', e => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      const n = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+      show(n.getAttribute('aria-controls'), true);
+    });
+  });
+  window.addEventListener('hashchange', () => show(location.hash.slice(1)));
+
+  // ---------------------------------------------------------------- 1. normalizer
+  const SCRIPTS = [[/[\u0900-\u097F]/, 'Hindi (Devanagari)'], [/[\u0C80-\u0CFF]/, 'Kannada'], [/[\u0B80-\u0BFF]/, 'Tamil'],
+    [/[\u0D00-\u0D7F]/, 'Malayalam'], [/[\u0980-\u09FF]/, 'Bengali'], [/[\u0A80-\u0AFF]/, 'Gujarati'],
+    [/[\u0C00-\u0C7F]/, 'Telugu'], [/[\u0A00-\u0A7F]/, 'Punjabi (Gurmukhi)']];
+  const scriptOf = s => { for (const [rx, n] of SCRIPTS) if (rx.test(s)) return n; return 'Latin'; };
+  const NSETS = [
+    ['Ganga Surya Sweets', ['Ganga Surya Sweets Pvt Ltd', 'ಗಂಗಾ ಸೂರ್ಯ ಸ್ವೀಟ್ಸ್ ಪ್ರೈವೇಟ್ ಲಿಮಿಟೆಡ್', 'गंगा सूर्या स्वीट्स प्राइवेट लिमिटेड']],
+    ['Ram Marketing', ['Ram Marketing Pvt Ltd', 'राम मार्केटिंग प्रा. लि.', 'ರಾಮ್ ಮಾರ್ಕೆಟಿಂಗ್ ಪ್ರೈವೇಟ್ ಲಿಮಿಟೆಡ್']],
+    ['Global Business', ['Global Business Pvt Ltd', 'குளோபல் பிசினஸ் பிரைவேட் லிமிடெட்', 'ग्लोबल बिज़नेस प्राइवेट लिमिटेड']],
+    ['Noisy English', ['-- Holloway Peak Inc Seafood', 'S.A.S Holloway Peak Seafood', 'LLC Holloway Peak Seafood']],
+    ['Silver Consultancy', ['Silver Consultancy Pvt Ltd', 'സിൽവർ കൺസൾട്ടൻസി പ്രൈവറ്റ് ലിമിറ്റഡ്', 'সিলভার কনসালটেন্সি প্রাইভেট লিমিটেড']],
+  ];
+  const streams = $('#streams');
+  for (let i = 0; i < 3; i++) {
+    const d = document.createElement('div');
+    d.className = 'card stream';
+    d.innerHTML = `<label class="script" for="nin${i}" id="nsc${i}">Latin</label>
+      <input id="nin${i}" autocomplete="off" spellcheck="false">
+      <dl class="steps"><div><dt>Latin form</dt><dd id="nlat${i}"></dd></div>
+      <div><dt>Core name and legal form</dt><dd id="ncore${i}"></dd></div>
+      <div><dt>Phonetic key</dt><dd id="nkey${i}"></dd></div></dl>`;
+    streams.appendChild(d);
+    d.querySelector('input').addEventListener('input', renderNorm);
+  }
+  const normSets = $('#normSets');
+  NSETS.forEach(([label, vals], i) => {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.type = 'button'; b.textContent = label; b.setAttribute('aria-pressed', i === 0);
+    b.addEventListener('click', () => {
+      normSets.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c === b));
+      vals.forEach((v, k) => { $('#nin' + k).value = v; }); renderNorm();
+    });
+    normSets.appendChild(b);
+  });
+  NSETS[0][1].forEach((v, k) => { $('#nin' + k).value = v; });
+
+  function renderNorm() {
+    const ks = [];
+    for (let i = 0; i < 3; i++) {
+      const raw = $('#nin' + i).value, n = Triveni.normName(raw);
+      $('#nsc' + i).textContent = scriptOf(raw);
+      $('#nlat' + i).textContent = raw.trim() ? Triveni.transliterate(raw).toLowerCase() : '';
+      $('#ncore' + i).textContent = raw.trim() ? n.core + (n.suffix ? '  +  ' + n.suffix : '') : '';
+      $('#nkey' + i).textContent = n.skel;
+      ks.push(n.skel);
+    }
+    const filled = ks.filter(Boolean), agree = filled.length >= 2 && filled.every(k => k === filled[0]);
+    const o = $('#outcome');
+    o.className = 'outcome' + (agree ? ' agree' : '');
+    const keySet = new Set(filled.flatMap(k => k.split(' ')));
+    const shared = Array.from(keySet).filter(t => filled.every(k => k.split(' ').includes(t)));
+    o.innerHTML = agree
+      ? `<p class="muted">All keys agree</p><p class="key">${esc(filled[0])}</p><p>These records sound the same, so blocking puts them together and the model compares them.</p>`
+      : `<p class="muted">Keys differ</p><p class="key">${shared.length ? esc(shared.join(' ')) : '—'}</p>
+         <p>${shared.length ? 'They still share these sounds, so blocking keeps them as candidates and the model weighs the difference.' : 'No shared sounds yet. Edit a name to see the keys change.'}</p>`;
+    drawFlow(agree);
+  }
+  function drawFlow(agree) {
+    const svg = $('#flow'); if (!svg) return;
+    if (agree === undefined) agree = $('#outcome').classList.contains('agree');
+    const css = getComputedStyle(document.documentElement);
+    const col = agree ? css.getPropertyValue('--teal') : css.getPropertyValue('--line');
+    svg.querySelectorAll('path').forEach(p => p.setAttribute('stroke', col.trim()));
+  }
+
+  // ---------------------------------------------------------------- 2. compare
+  const PSETS = [
+    ['Hindi vs English', ['Ram Marketing Pvt Ltd', '12 Brigade Road, Bengaluru 560001', 'India'], ['राम मार्केटिंग प्राइवेट लिमिटेड', 'No. 12, Brigade Rd, Bengaluru', 'India']],
+    ['Typos and swapped words', ['Summit Liberty Dental Inc', '215 Eagle Road, Denver, CO 80202', 'US'], ['Libety Summit Dental Incorporated', '215 Eagle Rd, Denver CO', 'US']],
+    ['Same building, different shop', ['Lakshmi Jewellers Pvt Ltd', '45 MG Road, Pune 411001', 'India'], ['Surya Electronics', '45 M.G. Road, Pune 411001', 'India']],
+    ['Same brand, other branch', ['Balaji Sweets', '88 Station Road, Jaipur 302001', 'India'], ['BALAJI SWEETS', '312 Park Street, Jaipur 302044', 'India']],
+    ['French accents', ['Boulangerie Étoile SARL', '12 Rue de la Paix, 69002 Lyon', 'France'], ['BOULANGERIE ETOILE', '12 R. de la Paix, Lyon', 'France']],
+  ];
+  function recForm(el, who) {
+    el.innerHTML = `<p class="h3">${who === 'A' ? 'Source 1 record' : 'Source 2 or 3 record'}</p>
+      <label>Business name<input id="${who}n" autocomplete="off" spellcheck="false"></label>
+      <label>Address<input id="${who}a" autocomplete="off" spellcheck="false"></label>
+      <label>Country<select id="${who}c"><option>India</option><option>US</option><option>France</option></select></label>`;
+    el.querySelectorAll('input,select').forEach(x => x.addEventListener('input', renderPair));
+  }
+  recForm($('#recA'), 'A'); recForm($('#recB'), 'B');
+  const pairSets = $('#pairSets');
+  function loadPair(i) {
+    const [, a, b] = PSETS[i];
+    [['A', a], ['B', b]].forEach(([w, r]) => { $('#' + w + 'n').value = r[0]; $('#' + w + 'a').value = r[1]; $('#' + w + 'c').value = r[2]; });
+    pairSets.querySelectorAll('.chip').forEach((c, k) => c.setAttribute('aria-pressed', k === i));
+    renderPair();
+  }
+  PSETS.forEach(([label], i) => {
+    const b = document.createElement('button'); b.className = 'chip'; b.type = 'button'; b.textContent = label;
+    b.addEventListener('click', () => loadPair(i)); pairSets.appendChild(b);
+  });
+  const FI = Object.fromEntries(B.features.map((f, i) => [f, i]));
+  function frow(label, v, kind) {
+    if (kind === 'flag') {
+      const cls = v === 'yes' ? 'yes' : v === 'no' ? 'no' : 'na';
+      return `<div class="frow"><span>${label}</span><span class="v flag ${cls}">${v === 'na' ? 'n/a' : v}</span></div>`;
+    }
+    return `<div class="frow"><span>${label}</span><span class="v">${f2(v)}</span><span class="meter"><i style="width:${Math.max(0, Math.min(1, v)) * 100}%"></i></span></div>`;
+  }
+  function renderPair() {
+    const rec = w => ({ entity_id: w === 'A' ? 'S1-a' : 'S2-b', business_name: $('#' + w + 'n').value, business_address: $('#' + w + 'a').value, country: $('#' + w + 'c').value });
+    const r = Triveni.scorePair(rec('A'), rec('B')), x = r.x, p = r.p, match = p >= 0.5;
+    const v = $('#verdict');
+    v.className = 'card verdict ' + (match ? 'match' : 'nomatch');
+    v.innerHTML = `<p class="prob">${f2(p)}</p><div><p class="says">${match ? 'Same business' : 'Different businesses'}</p>
+      <p class="muted">Match probability from the stage-1 model. In the full pipeline, stage 2 and the decoder also look at every other candidate.</p></div>`;
+    const flag = (both, eq) => both ? (eq ? 'yes' : 'no') : 'na';
+    const ka = Triveni.keys(r.a), kb = new Set(Triveni.keys(r.b));
+    $('#fgrid').innerHTML = `
+      <div class="card fgroup"><p class="h3">Name</p>
+        ${frow('Jaro-Winkler', x[FI.n_jw])}${frow('Levenshtein ratio', x[FI.n_lev])}
+        ${frow('Character-trigram cosine', x[FI.n_cos3])}${frow('Phonetic-key overlap', x[FI.sk_jac])}
+        ${frow('IDF-weighted word overlap', x[FI.idf_jac])}
+        <div class="frow"><span>Rarest unmatched word (IDF)</span><span class="v">${f2(x[FI.unmatched_idf])}</span></div></div>
+      <div class="card fgroup"><p class="h3">Address</p>
+        ${frow('Address trigram cosine', x[FI.a_cos3])}${frow('Address word overlap', x[FI.a_jac])}
+        ${frow('Same postcode', flag(x[FI.pc_both], x[FI.pc_eq]), 'flag')}
+        ${frow('Same house number', flag(x[FI.num_both], x[FI.num_eq]), 'flag')}
+        ${frow('Same legal form', flag(x[FI.suf_both], x[FI.suf_eq]), 'flag')}</div>
+      <div class="card fgroup"><p class="h3">Blocking keys</p>
+        <p class="muted small">Highlighted keys are shared, so blocking would pair these records.</p>
+        <div class="keysbox">${ka.map(k => `<span class="k${kb.has(k) ? ' shared' : ''}">${esc(k)}</span>`).join('')}</div>
+        <p class="small" style="margin-top:12px"><b>Core names:</b> ${esc(r.a.core)} / ${esc(r.b.core)}</p></div>`;
+  }
+
+  // ---------------------------------------------------------------- 3. pipeline
+  const T = B.test, py = B.python;
+  $('#pipeLede').textContent = `${T.s1.length} Source 1 businesses and ${T.pool.length.toLocaleString()} records in Sources 2 and 3, across the US, India and France. ${Object.keys(T.script).length} records are written in Hindi, Kannada or Tamil. France never appeared in training.`;
+  const STAGES = [['normalize', 'Normalize'], ['block', 'Block'], ['stage1', 'Stage-1 model'], ['stage2', 'Stage-2 + calibrate'], ['decode', 'Decide']];
+  $('#stages').innerHTML = STAGES.map(([k, n]) => `<li id="st-${k}"><b>${n}</b><span>Waiting</span></li>`).join('');
+  const tick = () => new Promise(r => setTimeout(r, 260));
+  let RES = null, EV = null, filter = 'all', current = null;
+  $('#runBtn').addEventListener('click', async () => {
+    const btn = $('#runBtn'); btn.disabled = true; btn.textContent = 'Running';
+    STAGES.forEach(([k]) => { const li = $('#st-' + k); li.className = ''; li.querySelector('span').textContent = 'Waiting'; });
+    $('#results').hidden = true;
+    RES = await Triveni.run(T, async (stage, info) => {
+      const li = $('#st-' + stage), s = li.querySelector('span');
+      if (stage === 'normalize') s.textContent = `${info.n.toLocaleString()} records cleaned`;
+      if (stage === 'block') s.textContent = `${info.allPairs.toLocaleString()} possible pairs → ${info.kept.toLocaleString()} candidates`;
+      if (stage === 'stage1') s.textContent = `${info.n.toLocaleString()} pairs scored`;
+      if (stage === 'stage2') s.textContent = 'Context added, probabilities calibrated';
+      if (stage === 'decode') s.textContent = `Best match set chosen for ${T.s1.length} businesses`;
+      li.className = 'done'; await tick();
+    });
+    EV = Triveni.evaluate(RES, T.truth);
+    renderMetrics(); renderList(); $('#results').hidden = false;
+    btn.disabled = false; btn.textContent = 'Run again';
+    $('#runNote').textContent = `Finished in ${(RES.ms / 1000).toFixed(2)} s of computation.`;
+  });
+  function renderMetrics() {
+    const red = 1 - RES.pairs.length / RES.allPairs;
+    $('#metrics').innerHTML = `
+      <div class="card metric big"><p class="n">${EV.f05.toFixed(3)}</p><p class="muted">Macro F0.5, the competition score</p></div>
+      <div class="card metric"><p class="n">${pct(EV.precision)}</p><p class="muted">Precision</p></div>
+      <div class="card metric"><p class="n">${pct(EV.recall)}</p><p class="muted">Recall</p></div>
+      <div class="card metric"><p class="n">${EV.singletonAcc == null ? 'n/a' : pct(EV.singletonAcc)}</p><p class="muted">No-match cases called correctly</p></div>
+      <div class="card metric"><p class="n">${pct(red)}</p><p class="muted">Pairs removed by blocking, keeping ${pct(EV.blockingRecall)} of true matches</p></div>`;
+    $('#country').innerHTML = ['US', 'India', 'France'].filter(c => c in EV.country).map(c =>
+      `<div class="card"><span class="muted small">${c}${c === 'France' ? ', never seen in training' : ''}</span><br><b>${EV.country[c].toFixed(3)}</b></div>`).join('');
+  }
+  const FILTERS = [['all', 'All'], ['mistakes', 'Mistakes'], ['indic', 'Indic script'], ['none', 'No true match'], ['france', 'France']];
+  $('#filters').innerHTML = FILTERS.map(([k, n]) => `<button class="chip" type="button" data-f="${k}" aria-pressed="${k === 'all'}">${n}</button>`).join('');
+  $('#filters').addEventListener('click', e => {
+    const b = e.target.closest('[data-f]'); if (!b) return;
+    filter = b.dataset.f; $('#filters').querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c === b)); renderList();
+  });
+  $('#search').addEventListener('input', renderList);
+  function status(id) {
+    const pr = new Set(RES.pred[id] || []), tr = new Set(T.truth[id] || []);
+    return pr.size === tr.size && [...pr].every(x => tr.has(x));
+  }
+  function renderList() {
+    const q = $('#search').value.trim().toLowerCase();
+    const items = RES.s1.filter(r => {
+      if (q && !r.name.toLowerCase().includes(q)) return false;
+      if (filter === 'mistakes') return !status(r.id);
+      if (filter === 'indic') return (T.truth[r.id] || []).some(t => t in T.script);
+      if (filter === 'none') return !(T.truth[r.id] || []).length;
+      if (filter === 'france') return r.country === 'France';
+      return true;
+    });
+    $('#list').innerHTML = items.length ? items.slice(0, 400).map(r => {
+      const ok = status(r.id);
+      return `<button class="item" type="button" data-id="${esc(r.id)}" aria-current="${r.id === current}">
+        <span class="nm">${esc(r.name)}</span><span class="st ${ok ? 'ok' : 'err'}">${ok ? 'Correct' : 'Mistake'}</span>
+        <span class="meta">${esc(r.country)}, ${(T.truth[r.id] || []).length} true match${(T.truth[r.id] || []).length === 1 ? '' : 'es'}</span></button>`;
+    }).join('') : '<p class="muted small" style="padding:10px">No businesses fit this filter. Choose another filter or clear the search.</p>';
+    if (!current || !items.some(r => r.id === current)) {
+      const nice = items.find(r => status(r.id) && (T.truth[r.id] || []).some(t => t in T.script) && (T.truth[r.id] || []).length >= 2);
+      if (items.length) select((filter === 'all' && nice ? nice : items[0]).id);
+    }
+  }
+  $('#list').addEventListener('click', e => { const b = e.target.closest('[data-id]'); if (b) select(b.dataset.id); });
+  function select(id) {
+    current = id;
+    document.querySelectorAll('#list .item').forEach(b => b.setAttribute('aria-current', b.dataset.id === id));
+    const s = RES.recs.get(id), d = RES.dec[id], tr = new Set(T.truth[id] || []);
+    const missing = [...tr].filter(t => !d.cands.some(c => c.t === t));
+    const rows = d.cands.map((c, i) => {
+      const r = RES.recs.get(c.t), chosen = i < d.k;
+      return `<tr class="${chosen ? 'chosen' : ''}"><td><span class="tag">${esc(c.t.slice(0, 2))}</span></td>
+        <td>${esc(r.name)}${/[\u0900-\u0D7F]/.test(r.name) ? `<span class="readas">reads as: ${esc(r.core)}${r.suffix ? ' ' + esc(r.suffix) : ''}</span>` : ''}<span class="muted small addr">${esc(r.addr)}</span></td>
+        <td class="num">${f2(c.p1)}</td><td class="num">${f2(c.p)}</td>
+        <td>${chosen ? '<b>Matched</b>' : ''}</td><td>${tr.has(c.t) ? '<span class="flag yes">Yes</span>' : '<span class="muted">No</span>'}</td></tr>`;
+    }).join('');
+    const sc = (d.cands.length ? Triveni.expectedF(d.cands.map(c => c.p), 0.5, 0, 6, 0).scores : [1]).slice(0, 7), mx = Math.max(...sc, 0.01);
+    const bars = sc.map((v, k) => `<div class="${k === d.k ? 'best' : ''}"><i style="height:${(v / mx) * 100}%" data-v="${f2(v)}"></i><em>${k === 0 ? 'None' : 'Top ' + k}</em></div>`).join('');
+    $('#detail').innerHTML = `<p class="h3">${esc(s.name)}</p><p class="muted">${esc(s.addr)}, ${esc(s.country)}</p>
+      <div class="table-wrap"><table><thead><tr><th>Source</th><th>Candidate</th><th>Stage 1</th><th>Final</th><th>Decision</th><th>Truly same</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" class="muted">Blocking found no candidates for this business.</td></tr>'}</tbody></table></div>
+      ${missing.length ? `<p class="small" style="margin-top:10px;color:var(--bad)">Missed by blocking: ${missing.map(t => esc(RES.recs.get(t)?.name || t)).join(', ')}</p>` : ''}
+      <p class="h3" style="margin-top:22px">Expected F0.5 for each choice</p>
+      <p class="muted small">The decoder predicts the set with the highest expected score: ${d.k === 0 ? 'no match' : 'the top ' + d.k}.</p>
+      <div class="bars">${bars}</div>`;
+  }
+
+  // ---------------------------------------------------------------- 4. how
+  const tr = B.train;
+  $('#training').innerHTML = `<p class="h3">Training</p>
+    <p class="muted" style="margin:8px 0 12px">Trained on ${tr.n_s1.toLocaleString()} businesses and ${tr.n_pool.toLocaleString()} records from the US and India.</p>
+    <div class="frow kv"><span>Candidate pairs</span><span class="v">${tr.n_pairs.toLocaleString()}</span></div>
+    <div class="frow kv"><span>Trees in stage 1 / stage 2</span><span class="v">${tr.trees1} / ${tr.trees2}</span></div>
+    <div class="frow kv"><span>Out-of-fold F0.5, stage 1 only</span><span class="v">${tr.oof.stage1_threshold.f05.toFixed(3)}</span></div>
+    <div class="frow kv"><span>Out-of-fold F0.5, full pipeline</span><span class="v">${tr.oof.stage2_expected.f05.toFixed(3)}</span></div>`;
+  const NAMES = { n_jw: 'Name Jaro-Winkler', n_lev: 'Name Levenshtein', n_jac: 'Name word Jaccard', n_ovl: 'Name word overlap', n_cos3: 'Name trigram cosine',
+    sk_jac: 'Phonetic-key overlap', sk_eq: 'Same phonetic key', first_eq: 'Same first word', comp_lev: 'Joined-name Levenshtein', soft_me: 'Soft word match',
+    idf_jac: 'IDF word overlap', unmatched_idf: 'Rarest unmatched word', suf_both: 'Both have legal form', suf_eq: 'Same legal form', acr_hit: 'Acronym match',
+    alt_best: 'DBA name overlap', a_jac: 'Address word Jaccard', a_cos3: 'Address trigram cosine', pc_both: 'Both have postcode', pc_eq: 'Same postcode',
+    pc_conf: 'Postcode conflict', num_both: 'Both have house no.', num_eq: 'Same house number', num_conf: 'House-number conflict', a_empty: 'Missing address',
+    len_diff: 'Name length gap', ntok_diff: 'Word-count gap' };
+  const imax = Math.max(...tr.imp1.map(x => x[1]));
+  $('#imp1').innerHTML = `<p class="h3">What stage 1 relies on most</p><p class="muted small" style="margin:6px 0 10px">Total gain of each feature across the trees.</p>` +
+    tr.imp1.slice(0, 8).map(([f, g]) => `<div class="frow"><span>${NAMES[f] || f}</span><span class="meter"><i style="width:${(g / imax) * 100}%"></i></span></div>`).join('');
+
+  renderNorm(); loadPair(0); show(location.hash.slice(1) || 'normalize');
+  window.scrollTo(0, 0);
+})();
+</script>
+</body>
+</html>
